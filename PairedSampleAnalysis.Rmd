@@ -1,0 +1,275 @@
+---
+title: "DTSEA Paired Sample Workflow"
+author: "Andrew Patt"
+date: "2026-03-17"
+output: 
+    html_document:
+        number_sections: true
+---
+
+# Intro and User Input
+
+This workflow performs drug target set enrichment analysis (DTSEA) on paired-
+sample high-throughput compound screening data. It is intended for studies with
+two phenotype groups and multiple sample columns defined in a metadata
+workbook. If this is not the case, the single-sample analysis workflow should
+be used instead.
+
+The main user-supplied input for the workflow is a multi-sheet Excel workbook.
+The first sheet contains analysis metadata and run settings, including the
+analysis name, output directory, mapping library path, and statistical tests to
+be run. The mapping library path should point to a drug-target mapping file in
+the [.GMT format.](https://docs.gsea-msigdb.org/#GSEA/Data_Formats/) The second
+sheet contains the experimental abundance matrix, with sample columns matching
+the metadata sheet exactly and in the same order. Rows should represent
+abundance values for individual screening compounds.
+
+The workflow writes results to a timestamped subdirectory under the user-
+specified root directory. Outputs include result tables and summary plots for
+comparing enrichment results across methods and allowing users to identify
+high-priority drug targets.
+
+To run the workflow, edit the `data_sheet` value in the `Input Data` chunk so
+that it points to your Excel workbook. The rest of the code can usually be run
+without modification.
+
+```{r Input Data}
+## ENTER THE PATH FOR THE USER DATA HERE
+data_sheet <- "Example_Paired_Data.xlsx"
+```
+
+# Automated workflow
+## Read in data and organize for downstream analysis
+
+```{r Organize Data Structures}
+metadata <- readxl::read_excel(data_sheet, sheet = 1, col_names = FALSE)
+data <- readxl::read_excel(data_sheet, sheet = 2)
+colnames(metadata)[1] <- "Static"
+
+metadata_categories <- c("Analysis_Name","Root_Directory","Transformations",
+                         "Mapping_Library","Tests")
+
+metadata_list <- lapply(metadata_categories, function(x) {
+  metadata |>
+    dplyr::filter(Static == x) |>
+    dplyr::pull(2)
+})
+names(metadata_list) <- metadata_categories
+
+path <- paste0(
+  metadata_list["Root_Directory"],
+  "/",
+  metadata_list["Analysis_Name"],
+  "_",
+  format(Sys.time(), "%Y%m%d_%H%M")
+)
+
+gmt.file <- file.path(metadata_list["Mapping_Library"])
+gs <- EnrichmentBrowser::getGenesets(gmt.file)
+gs <- lapply(gs, function(x) {
+  x <- x[which(x != "")]
+})
+
+if (!dir.exists(path)) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(path)) {
+    stop("Unable to create output directory. Check that the root directory exists and is writable.")
+  }
+  knitr::opts_knit$set(root.dir = path)
+  setwd(path)
+} else {
+  stop("Analysis would overwrite existing data, choose another analysis name or delete old analyses")
+}
+
+compoundColumn <- metadata |>
+  dplyr::filter(Static %in% c("Column", "Type")) |>
+  t() |>
+  as.data.frame() |>
+  stats::setNames(c("Column", "Type")) |>
+  dplyr::slice(-c(1)) |>
+  dplyr::filter(Type == "Compound") |>
+  dplyr::pull(Column)
+
+if (length(compoundColumn) == 0) {
+  stop("No compound column was specified in the metadata. Please mark exactly one column with Type = 'Compound'.")
+}
+
+if (length(compoundColumn) > 1) {
+  stop("Multiple compound columns specified in data, please choose only one and ensure the rest are abundance values")
+}
+
+data_numeric <- data |>
+  dplyr::select(-tidyselect::all_of(compoundColumn)) |>
+  as.matrix()
+
+utils::write.table(
+  data_numeric,
+  "exprs.tab",
+  sep = "\t",
+  row.names = FALSE,
+  col.names = FALSE,
+  quote = FALSE
+)
+
+columnMeta <- metadata |>
+  dplyr::filter(Static %in% c("Column", "Type", "Phenotype")) |>
+  t() |>
+  as.data.frame() |>
+  stats::setNames(c("Column", "Type", "Phenotype")) |>
+  dplyr::slice(-c(1)) |>
+  dplyr::filter(Type == "Sample") |>
+  dplyr::select(-2) |>
+  dplyr::mutate(Phenotype = as.numeric(Phenotype))
+
+utils::write.table(
+  columnMeta,
+  "colnames.tab",
+  sep = "\t",
+  row.names = FALSE,
+  col.names = FALSE,
+  quote = FALSE
+)
+
+rownamesDF <- data |>
+  dplyr::select(dplyr::all_of(compoundColumn)) |>
+  as.matrix()
+
+utils::write.table(
+  rownamesDF,
+  "rownames.tab",
+  sep = "\t",
+  row.names = FALSE,
+  col.names = FALSE,
+  quote = FALSE
+)
+```
+
+## Execute statistical tests and store results
+
+```{r Run tests}
+if(metadata_list["Tests"]=="all") {
+  test_list <- c("gsea","padog","globaltest","camera",
+                 "safe","gsa","samgs","roast","gsva")
+}else {
+  test_list <-  trimws(strsplit(metadata_list["Tests"], ",")[[1]])
+}
+
+se <- EnrichmentBrowser::readSE("exprs.tab", "colnames.tab", "rownames.tab")
+se <- EnrichmentBrowser::deAna(se, padj.method = "BH")
+
+
+EnrichmentBrowser::configEBrowser(key="GS.MIN.SIZE", value=3)
+results_list <- lapply(test_list,
+                       function(x) {
+                         EnrichmentBrowser::sbea(method = x, se = se, gs = gs)
+                       })
+
+save(file = paste0(metadata_list["Analysis_Name"],"_results.Rda"), results_list)
+
+```
+
+## Assemble and export results tables
+
+```{r Tables}
+for(i in 1:length(results_list)) {
+  xlsx::write.xlsx(results_list[[i]]$res.tbl,
+                   paste0(metadata_list["Analysis_Name"],"_results.xlsx"),
+                   sheetName = test_list[i],append=TRUE)
+}
+
+rankings <- lapply(results_list,EnrichmentBrowser::gsRanking,signif.only=FALSE)
+names(rankings) <- test_list
+
+rankings <- lapply(rankings, function(x) {
+  x<-as.data.frame(x)
+})
+
+resultDF<-rankings |>
+  dplyr::bind_rows(.id = "test") |>
+  dplyr::select(c(test, GENE.SET, PVAL))
+
+allPvals <- resultDF |>
+  tidyr::pivot_wider(
+    id_cols = GENE.SET,
+    names_from = test,
+    values_from = PVAL,
+    names_glue = "{test}_pval"
+    )
+
+setSize <- sapply(gs,length) |> as.data.frame() |>
+  tibble::rownames_to_column("GENE.SET") |>
+  dplyr::rename("SET.SIZE" = "sapply(gs, length)")
+
+allPvals <- setSize |>
+  dplyr::left_join(allPvals, by = "GENE.SET")
+write.csv(allPvals, paste0(metadata_list["Analysis_Name"],"_all_pvals.csv"))
+```
+
+## Create and export visuals
+
+```{r Visualizations}
+######################################################################################
+## Jitter plot                                                                      ##
+######################################################################################
+
+p <- resultDF |>
+  ggplot2::ggplot(ggplot2::aes(x = test,y=-log10(PVAL + 0.00001))) +
+  ggplot2::geom_jitter(width = 0.1, alpha = 0.1) +
+  ggplot2::theme_classic(base_size = 22) +
+  ggplot2::geom_hline(yintercept = -log10(0.05), linetype = "dotted", col = "red") +
+  ggplot2::guides(alpha= "none") +
+  ggplot2::labs(y = "log10(pval)")
+
+ggplot2::ggsave(paste0(metadata_list["Analysis_Name"],"_pval_distributions.png"), p,
+                width = 14, units = "in")
+
+######################################################################################
+## Significant findings UpSet                                                       ##
+######################################################################################
+upsetDF <- resultDF |>
+  dplyr::filter(PVAL < 0.05) |>
+  dplyr::select(test, GENE.SET)
+listInput<-lapply(upsetDF |> dplyr::pull(test) |> unique(),
+                  function(x) {
+                    upsetDF |> dplyr::filter(test==x) |> dplyr::pull(GENE.SET)
+                  })
+
+names(listInput) <- upsetDF |> dplyr::pull(test) |> unique()
+
+if (length(listInput) > 0) {
+  png(paste0(metadata_list["Analysis_Name"],"_upset.png"),width=10, height=7, units="in", res = 300)
+  UpSetR::upset(UpSetR::fromList(listInput),text.scale = c(1.3, 1.3, 1.3, 1.3, 2, 1.3), nsets = 9)
+  dev.off()
+} else {
+  message("No significant gene sets were detected at PVAL < 0.05; skipping UpSet plot export.")
+}
+
+######################################################################################
+## Compound Boxplots                                                                ##
+######################################################################################
+significant_gs <- sort(unique(unlist(listInput)))
+
+boxplot_frame <- data_numeric
+rownames(boxplot_frame) <- data |>
+  dplyr::select(dplyr::all_of(compoundColumn)) |>
+  as.matrix()
+
+boxplotter <- function(compound) {
+  boxplot_data <- data.frame(AUC = boxplot_frame[compound,],Pheno = as.factor(columnMeta$Phenotype)) 
+  ggplot2::ggplot(boxplot_data,ggplot2::aes(x = Pheno, y = AUC, fill = Pheno)) +
+    ggplot2::geom_boxplot() +
+    ggplot2::geom_jitter(width=.1) +
+    ggplot2::ggtitle(compound) + ggplot2::theme(legend.position = "none")
+}
+
+
+pdf(paste0(metadata_list["Analysis_Name"],"_significant_target-level_boxplots.pdf"))
+lapply(significant_gs, function(x) {
+  plist <- lapply(gs[[x]], boxplotter)
+  n <- length(gs[[x]])
+  nCol <- floor(sqrt(n))
+  gridExtra::grid.arrange(grobs = plist, ncol = nCol,
+                          top=grid::textGrob(x,gp=grid::gpar(fontsize=20,font=3)))
+})
+dev.off()
+```

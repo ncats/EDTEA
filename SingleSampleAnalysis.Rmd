@@ -1,0 +1,208 @@
+---
+title: "DTSEA Paired Sample Workflow"
+author: "Andrew Patt"
+date: "2026-03-17"
+output: 
+    html_document:
+        number_sections: true
+---
+
+# Intro and User Input
+
+This workflow performs single-sample DTSEA-style analyses on compound screening
+data supplied in a multi-sheet Excel workbook. It generalizes the original
+MIPE-specific analysis by reading assay values, sample annotations, and
+run-level settings from the workbook rather than from hard-coded input files.
+
+The workbook should contain a metadata sheet, a long-form assay data sheet, and
+an optional sample metadata sheet. The metadata sheet defines the workbook
+sheet names, the relevant column names in the assay data, the pathway mapping
+library path, and the output location. The assay data sheet should contain one
+row per compound-sample observation, with separate columns for the raw response
+values and the ranking values used for enrichment. The sample metadata sheet
+can be used to provide disease labels or other annotations for each sample.
+
+To run the workflow, edit the `data_sheet` value in the `Input Data` chunk so
+that it points to your Excel workbook. The rest of the code can usually be run
+without modification.
+
+```{r Input Data}
+## ENTER THE PATH FOR THE USER DATA HERE
+data_sheet <- "Example_Single_Sample_Data.xlsx"
+```
+
+# Automated workflow
+## Load Libraries
+
+```{r}
+required_packages <- c(
+  "dplyr",
+  "tidyr",
+  "tibble",
+  "readxl",
+  "readr",
+  "data.table",
+  "openxlsx",
+  "fgsea",
+  "GSVA",
+  "heatmaply",
+  "NewmanOmics"
+)
+
+missing_packages <- required_packages[
+  !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+]
+
+if (length(missing_packages) > 0) {
+  stop(
+    paste(
+      "Install the following R packages before rendering this workflow:",
+      paste(missing_packages, collapse = ", ")
+    )
+  )
+}
+
+invisible(lapply(required_packages, library, character.only = TRUE))
+```
+
+## Read in data and organize for downstream analysis
+
+```{r}
+metadata <- readxl::read_excel(data_sheet, sheet = 1, col_names = FALSE)
+data <- readxl::read_excel(data_sheet, sheet = 2)
+colnames(metadata)[1] <- "Static"
+
+metadata_categories <- c("Analysis_Name","Root_Directory","Sample_Name",
+                         "Compound_Name", "Abundance", "Phenotype",
+                         "Transformations", "Mapping_Library")
+
+metadata_list <- lapply(metadata_categories, function(x) {
+  metadata |>
+    dplyr::filter(Static == x) |>
+    dplyr::pull(2)
+})
+names(metadata_list) <- metadata_categories
+
+path <- paste0(
+  metadata_list["Root_Directory"],
+  "/",
+  metadata_list["Analysis_Name"],
+  "_",
+  format(Sys.time(), "%Y%m%d_%H%M")
+)
+
+gmt.file <- file.path(metadata_list["Mapping_Library"])
+gs <- EnrichmentBrowser::getGenesets(gmt.file)
+gs <- lapply(gs, function(x) {
+  x <- x[which(x != "")]
+})
+
+set_sizes <- sapply(gs, function(x) length(which(!is.na(x))))
+
+if (!dir.exists(path)) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(path)) {
+    stop("Unable to create output directory. Check that the root directory exists and is writable.")
+  }
+  knitr::opts_knit$set(root.dir = path)
+  setwd(path)
+} else {
+  stop("Analysis would overwrite existing data, choose another analysis name or delete old analyses")
+}
+
+data <- data |>
+  dplyr::select(-as.character(metadata_list["Phenotype"])) |>
+  tidyr::pivot_wider(names_from = as.character(metadata_list["Sample_Name"]),
+                     values_from = as.character(metadata_list["Abundance"]))  |>
+  tibble::column_to_rownames(as.character(metadata_list["Compound_Name"]))
+
+if(as.character(metadata_list["Transformations"]) == "z-score") {
+  data_transformed <- as.data.frame(scale(data))
+} else if(as.character(metadata_list["Transformations"]) == "none") {
+  data_transformed <- data
+} else {
+  stop("'Data Transformation' must be 'z-score' or 'none'")
+}
+
+```
+
+## Newman Statistic/GSVA
+
+```{r}
+## As of the current version of the NewmanOmics package, p values for the 
+## two-tailed (default) test are calculated improperly. We need to
+## calculate the p value for the absolute value of pathway expression.
+pValCalculation<-
+  function(matrix, Background, n, s) {
+    Background <- abs(Background)
+    meanDist <- mean(Background)
+    sdDist <- sd(Background)
+    matP <- matrix(NA, n, s)
+    for (i in 1:n) {
+      for (j in 1:s) {
+        matP[i, j] <- pnorm(abs(matrix[i, j]), meanDist, sdDist, lower.tail=FALSE)
+      }
+    }
+    return(matP)
+  }
+
+assignInNamespace("pValuesBanked",pValCalculation, ns="NewmanOmics", pos="package:NewmanOmics")
+
+data_transformed<-as.matrix(data_transformed)
+
+gsva_data <- GSVA::gsvaParam(as.matrix(data_transformed),gs)
+gsva_data <- GSVA::gsva(gsva_data, verbose=FALSE)
+
+bank_gsva <- createBank(t(gsva_data))
+
+Newman_list_gsva <- lapply(seq_along(1:ncol(gsva_data)), function(x) {
+  out <- suppressWarnings(bankStat(bank_gsva, gsva_data[,x,drop=FALSE]))
+})
+
+names(Newman_list_gsva) <- colnames(gsva_data)
+
+all_GSVA <- lapply(seq_along(Newman_list_gsva), function(x) {
+  data.frame(
+    sample = names(Newman_list_gsva)[x],
+    pathway = rownames(gsva_data),
+    NS = as.numeric(Newman_list_gsva[[x]]$nu.statistics[, 1]),
+    p_value = as.numeric(Newman_list_gsva[[x]]$p.values[, 1])
+  )
+}) |>
+  data.table::rbindlist()
+
+all_GSVA <- all_GSVA |>
+    left_join(data.frame(pathway = names(set_sizes), set_size = set_sizes), by = "pathway") |>
+    relocate(set_size, .after = "pathway")
+write.csv(all_GSVA,file=paste0(metadata_list["Analysis_Name"],"_GSVA_results.csv"))
+
+```
+
+# GSEA
+
+```{r}
+GSEA_results <- lapply(1:ncol(data_transformed), function(x) {
+  ranks <- data_transformed[,x,drop=FALSE] |> as.vector() |> unlist()
+  names(ranks) <- rownames(data_transformed)
+  ranks <- sort(ranks)
+  out <- suppressWarnings(fgsea::fgsea(pathways = gs, 
+                                       stats = ranks))
+})
+
+sig_GSEA <- lapply(GSEA_results, function(x) {
+  x[padj < 0.05]
+})
+names(sig_GSEA) <- colnames(data_transformed)
+
+sig_GSEA <- rbindlist(sig_GSEA, idcol = TRUE)
+
+all_GSEA <- GSEA_results
+names(all_GSEA) <- colnames(data_transformed)
+
+all_GSEA <- rbindlist(all_GSEA, idcol = TRUE)
+
+write.csv(all_GSEA |> dplyr::select(-leadingEdge),
+          file=paste0(metadata_list["Analysis_Name"],"_GSEA_results.csv"))
+
+
+```

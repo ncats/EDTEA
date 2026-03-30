@@ -1,0 +1,138 @@
+Generalized DTSEA Single-Sample Workbook Setup
+
+The generalized workflow in MIPE_analysis_complete.qmd expects a multi-sheet
+Excel workbook with the following structure:
+
+1. Sheet 1: run metadata
+2. Sheet 2: long-form assay data
+3. Sheet 3: sample metadata (optional but recommended)
+
+Sheet 1: Run Metadata
+
+Use a two-column layout with no header row requirement. The first column should
+contain the metadata key and the second column should contain the value.
+
+Required metadata keys:
+- Analysis_Name
+- Root_Directory
+- Mapping_Library
+- Assay_Data_Sheet
+- Compound_Column
+- Sample_Column
+- Raw_Value_Column
+- Rank_Value_Column
+
+Optional metadata keys:
+- Mapping_Format
+- Sample_Metadata_Sheet
+- Annotation_Column
+- Top_Annotation_Groups
+
+Recommended metadata example:
+
+Analysis_Name            My_Single_Sample_DTSEA
+Root_Directory           /absolute/path/to/output_parent
+Mapping_Library          /absolute/path/to/target_sets.gmt
+Mapping_Format           gmt
+Assay_Data_Sheet         Assay_Data
+Sample_Metadata_Sheet    Sample_Metadata
+Compound_Column          Compound_ID
+Sample_Column            Sample_ID
+Raw_Value_Column         AUC
+Rank_Value_Column        AUC_ZScore
+Annotation_Column        Disease
+Top_Annotation_Groups    7
+
+Notes on metadata fields:
+- Analysis_Name becomes the prefix for output files and the timestamped output
+  directory.
+- Root_Directory should already exist and be writable.
+- Mapping_Library should point to a GMT or GMX pathway file.
+- Mapping_Format can be left blank if the file extension is .gmt or .gmx and
+  you want the workflow to infer the format.
+- Assay_Data_Sheet should match the worksheet name containing the assay table.
+- Sample_Metadata_Sheet should match the worksheet name containing one row per
+  sample. If left blank, the workflow will derive a sample list from the assay
+  sheet.
+- Annotation_Column should name a column in the sample metadata sheet, such as
+  Disease or Lineage. It is used for the annotation composition summary and the
+  GSVA heatmap side colors.
+- Top_Annotation_Groups controls how many annotation categories are shown
+  directly in the GSVA heatmap. Remaining categories are collapsed into Other.
+
+Sheet 2: Assay Data
+
+This sheet should be in long format, with one row per compound-sample pair.
+Each row represents the response of one compound in one sample.
+
+Required columns:
+- the compound identifier column named by Compound_Column
+- the sample identifier column named by Sample_Column
+- the raw response column named by Raw_Value_Column
+- the ranking column named by Rank_Value_Column
+
+Recommended example columns:
+- Compound_ID
+- Sample_ID
+- AUC
+- AUC_ZScore
+
+Example assay rows:
+
+Compound_ID    Sample_ID    AUC      AUC_ZScore
+NCGC001        Sample_A     0.42     1.87
+NCGC001        Sample_B     0.15     0.31
+NCGC002        Sample_A     0.76     2.11
+NCGC002        Sample_B     0.09    -0.44
+
+Assay data rules:
+- Keep exactly one row for each compound-sample combination.
+- The compound identifiers must match the identifiers used in the GMT or GMX
+  mapping library.
+- Raw_Value_Column is used for the raw response matrix.
+- Rank_Value_Column is used for the single-sample enrichment ranking matrix.
+- Missing values should be minimized. If a sample is missing many compounds,
+  downstream enrichment and GSVA results may be unstable.
+
+Sheet 3: Sample Metadata
+
+This sheet is optional but strongly recommended.
+
+Use one row per sample. It must include the sample identifier column named by
+Sample_Column. It can also include any sample-level annotations you want to use
+for summaries or heatmap labeling.
+
+Recommended columns:
+- Sample_ID
+- Disease
+- Cell_Line
+- Model_Class
+
+Example sample metadata rows:
+
+Sample_ID    Disease         Cell_Line    Model_Class
+Sample_A     Melanoma        A375         Cell line
+Sample_B     Breast cancer   MCF7         Cell line
+
+Sample metadata rules:
+- Each sample should appear exactly once.
+- Every sample listed in the assay sheet should also appear in this sheet.
+- The column named in Annotation_Column must exist here if you want annotation
+  composition output and GSVA heatmap group labels.
+
+How the workflow uses the workbook
+
+- The assay sheet is pivoted into two matrices:
+  one matrix of raw values and one matrix of ranking values.
+- The ranking matrix is used for Newman statistics, GSEA, and GSVA.
+- The raw matrix is kept as a generalized version of the original MIPE raw data
+  table and is available for extension if more raw-value summaries are added.
+- The sample metadata sheet is joined to the sample order in the enrichment
+  matrices so annotation summaries and GSVA side colors line up correctly.
+
+Practical recommendation
+
+If you are adapting an existing compound-screening dataset, first convert it to
+the long assay format described above, then prepare a separate one-row-per-
+sample metadata sheet. That layout is much easier to validate and generalize
+than storing sample annotations repeatedly in the assay table itself.
