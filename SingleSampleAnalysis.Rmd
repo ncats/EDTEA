@@ -136,27 +136,32 @@ pValCalculation<-
   function(matrix, Background, n, s) {
     Background <- abs(Background)
     meanDist <- mean(Background)
-    sdDist <- sd(Background)
+    sdDist <- stats::sd(Background)
     matP <- matrix(NA, n, s)
     for (i in 1:n) {
       for (j in 1:s) {
-        matP[i, j] <- pnorm(abs(matrix[i, j]), meanDist, sdDist, lower.tail=FALSE)
+        matP[i, j] <- stats::pnorm(abs(matrix[i, j]), meanDist, sdDist, lower.tail=FALSE)
       }
     }
     return(matP)
   }
 
-assignInNamespace("pValuesBanked",pValCalculation, ns="NewmanOmics", pos="package:NewmanOmics")
+utils::assignInNamespace("pValuesBanked",pValCalculation, ns="NewmanOmics", pos="package:NewmanOmics")
 
 data_transformed<-as.matrix(data_transformed)
 
 gsva_data <- GSVA::gsvaParam(as.matrix(data_transformed),gs)
 gsva_data <- GSVA::gsva(gsva_data, verbose=FALSE)
 
-bank_gsva <- createBank(t(gsva_data))
+gsva_data_long <- gsva_data |>
+  as.data.frame() |>
+  tibble::rownames_to_column("Compound") |>
+  tidyr::pivot_longer(-Compound)
+
+bank_gsva <- NewmanOmics::createBank(t(gsva_data))
 
 Newman_list_gsva <- lapply(seq_along(1:ncol(gsva_data)), function(x) {
-  out <- suppressWarnings(bankStat(bank_gsva, gsva_data[,x,drop=FALSE]))
+  out <- suppressWarnings(NewmanOmics::bankStat(bank_gsva, gsva_data[,x,drop=FALSE]))
 })
 
 names(Newman_list_gsva) <- colnames(gsva_data)
@@ -166,14 +171,18 @@ all_GSVA <- lapply(seq_along(Newman_list_gsva), function(x) {
     sample = names(Newman_list_gsva)[x],
     pathway = rownames(gsva_data),
     NS = as.numeric(Newman_list_gsva[[x]]$nu.statistics[, 1]),
-    p_value = as.numeric(Newman_list_gsva[[x]]$p.values[, 1])
+    p.values = as.numeric(Newman_list_gsva[[x]]$p.values[, 1]),
+    p.adj = stats::p.adjust(as.numeric(Newman_list_gsva[[x]]$p.values[, 1]),
+                            method = "fdr")
   )
 }) |>
   data.table::rbindlist()
 
 all_GSVA <- all_GSVA |>
-    left_join(data.frame(pathway = names(set_sizes), set_size = set_sizes), by = "pathway") |>
-    relocate(set_size, .after = "pathway")
+  dplyr::left_join(data.frame(pathway = names(set_sizes), set_size = set_sizes), by = "pathway") |>
+  dplyr::relocate(set_size, .after = "pathway")
+
+write.csv(gsva_data_long,file=paste0(metadata_list["Analysis_Name"],"_GSVA_data.csv"))
 write.csv(all_GSVA,file=paste0(metadata_list["Analysis_Name"],"_GSVA_results.csv"))
 
 ```
@@ -194,12 +203,12 @@ sig_GSEA <- lapply(GSEA_results, function(x) {
 })
 names(sig_GSEA) <- colnames(data_transformed)
 
-sig_GSEA <- rbindlist(sig_GSEA, idcol = TRUE)
+sig_GSEA <- data.table::rbindlist(sig_GSEA, idcol = TRUE)
 
 all_GSEA <- GSEA_results
 names(all_GSEA) <- colnames(data_transformed)
 
-all_GSEA <- rbindlist(all_GSEA, idcol = TRUE)
+all_GSEA <- data.table::rbindlist(all_GSEA, idcol = TRUE)
 
 write.csv(all_GSEA |> dplyr::select(-leadingEdge),
           file=paste0(metadata_list["Analysis_Name"],"_GSEA_results.csv"))
