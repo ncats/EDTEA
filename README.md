@@ -4,26 +4,24 @@ Drug Target Set Enrichment Analysis workflows for high-throughput compound
 screening data.
 
 This repository contains two R Markdown workflows for identifying target-level
-vulnerabilities from compound screening experiments:
+vulnerabilities from high-throughput compound screening experiments:
 
-- `PairedSampleAnalysis.Rmd` for studies with two phenotype groups
-- `SingleSampleAnalysis.Rmd` for per-sample analysis without paired group
-  comparisons
+- `PairedSampleAnalysis.Rmd` for experiments with two phenotype groups to be tested for differential drug target-level sensitivities
+- `SingleSampleAnalysis.Rmd` for per-sample sensitivity analysis, using all other samples as a reference background 
 
-The repository also includes example Excel workbooks and `.gmt` drug-target
-mapping libraries so the workflows can be run directly as templates.
+The markdown files use data and metadata stored in excel manifests, examples of which are present for both workflows. The repository also includes example `.gmt` drug-target
+mapping libraries, although custom libraries are accommodated as well.
 
 ## Repository Contents
 
 - `PairedSampleAnalysis.Rmd`: paired-sample DTSEA workflow using multiple
   enrichment methods through `EnrichmentBrowser`
-- `SingleSampleAnalysis.Rmd`: single-sample workflow using GSVA, Newman
-  statistics, and GSEA
+- `SingleSampleAnalysis.Rmd`: single-sample workflow using GSVA and single sample GSEA
 - `Example_Paired_Data.xlsx`: example input workbook for the paired workflow
 - `Example_Single_Sample_Data.xlsx`: example input workbook for the
   single-sample workflow
-- `MIPE_5_DSEA_Sets.gmt`: example compact target-mapping library
-- `Pharos_DSEA_Sets.gmt`: larger target-mapping library
+- `MIPE_5_DSEA_Sets.gmt`: example compact target-mapping library from the NCATS MIPE 5.0 drug screening platform
+- `Pharos_DSEA_Sets.gmt`: larger target-mapping library derived from the [Pharos druggable genome database](https://academic.oup.com/nar/article/51/D1/D1405/6851109)
 
 ## Requirements
 
@@ -72,9 +70,6 @@ if (!requireNamespace("BiocManager", quietly = TRUE)) {
 BiocManager::install(c("EnrichmentBrowser", "fgsea", "GSVA"))
 ```
 
-If `NewmanOmics` is not available from your standard package sources, install it
-from the source used by your group before rendering the single-sample workflow.
-
 ## Input Format
 
 Both workflows expect a multi-sheet Excel workbook.
@@ -84,8 +79,7 @@ Both workflows expect a multi-sheet Excel workbook.
 `PairedSampleAnalysis.Rmd` expects:
 
 - Sheet 1: metadata and run settings
-- Sheet 2: abundance matrix
-
+- Sheet 2: Long-form assay data, typically abundance
 The metadata sheet defines:
 
 - `Analysis_Name`
@@ -119,7 +113,6 @@ The metadata sheet defines:
 - `Transformations`
 - `Mapping_Library`
 
-The assay data sheet should contain one row per compound-sample observation.
 
 ## Quick Start
 
@@ -148,18 +141,18 @@ user-specified `Root_Directory`.
 
 ### Paired workflow outputs
 
-- `<Analysis_Name>_results.Rda`
-- `<Analysis_Name>_results.xlsx`
-- `<Analysis_Name>_all_pvals.csv`
-- `<Analysis_Name>_pval_distributions.png`
-- `<Analysis_Name>_upset.png` when significant sets are detected
-- `<Analysis_Name>_significant_target-level_boxplots.pdf`
+- `<Analysis_Name>_results.Rda`: all testing outputs for convenient loading into another R session
+- `<Analysis_Name>_results.xlsx`: full results across all run tests
+- `<Analysis_Name>_all_pvals.csv`: Convenient dataframe for comparing pvalues across tests
+- `<Analysis_Name>_pval_distributions.png`: Compare p value distributions by test
+- `<Analysis_Name>_upset.png`: Significant set counts in common across tests
+- `<Analysis_Name>_significant_target-level_boxplots.pdf`: Boxplots for all compounds mapping to significant targets
 
 ### Single-sample workflow outputs
 
-- `<Analysis_Name>_GSVA_data.csv`
-- `<Analysis_Name>_GSVA_results.csv`
-- `<Analysis_Name>_GSEA_results.csv`
+- `<Analysis_Name>_GSVA_data.csv`: Results of GSVA transformation
+- `<Analysis_Name>_GSVA_results.csv`: GSVA statistical outputs
+- `<Analysis_Name>_GSEA_results.csv`: Single Sample GSEA statistical outputs
 
 ## Notes
 
