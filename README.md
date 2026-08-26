@@ -165,4 +165,4 @@ user-specified `Root_Directory`.
 
 ## License
 
-This repository is released under the [MIT License](LICENSE).
+This repository is released under the [GNU General Public License v2.0 only](LICENSE).
