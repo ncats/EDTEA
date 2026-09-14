@@ -1,5 +1,5 @@
 ---
-title: "DTSEA Paired Sample Workflow"
+title: "DTSEA Single Sample Workflow"
 author: "Andrew Patt"
 date: "2026-03-17"
 output: 
