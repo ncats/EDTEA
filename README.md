@@ -1,6 +1,6 @@
-# DTSEA
+# EDTEA
 
-Drug Target Set Enrichment Analysis workflows for high-throughput compound
+Ensemble Drug Target Enrichment Analysis workflows for high-throughput compound
 screening data.
 
 This repository contains two R Markdown workflows for identifying target-level
@@ -14,7 +14,7 @@ mapping libraries, although custom libraries are accommodated as well.
 
 ## Repository Contents
 
-- `PairedSampleAnalysis.Rmd`: paired-sample DTSEA workflow using multiple
+- `PairedSampleAnalysis.Rmd`: paired-sample EDTEA workflow using multiple
   enrichment methods through `EnrichmentBrowser`
 - `SingleSampleAnalysis.Rmd`: single-sample workflow using GSVA and single sample GSEA
 - `Example_Paired_Data.xlsx`: example input workbook for the paired workflow
@@ -166,3 +166,7 @@ user-specified `Root_Directory`.
 ## License
 
 This repository is released under the [GNU General Public License v2.0 only](LICENSE).
+
+## Contact
+[Andrew Patt](mailto:andrew.patt@nih.gov)
+[Ewy Mathé](mailto:ewy.mathe@nih.gov)
