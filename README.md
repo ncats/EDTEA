@@ -1,6 +1,6 @@
-# DTSEA
+# EDTEA
 
-Drug Target Set Enrichment Analysis workflows for high-throughput compound
+Ensemble Drug Enrichment Analysis workflows for high-throughput compound
 screening data.
 
 This repository contains two R Markdown workflows for identifying target-level
@@ -14,7 +14,7 @@ mapping libraries, although custom libraries are accommodated as well.
 
 ## Repository Contents
 
-- `PairedSampleAnalysis.Rmd`: paired-sample DTSEA workflow using multiple
+- `PairedSampleAnalysis.Rmd`: paired-sample EDTEA workflow using multiple
   enrichment methods through `EnrichmentBrowser`
 - `SingleSampleAnalysis.Rmd`: single-sample workflow using GSVA and single sample GSEA
 - `Example_Paired_Data.xlsx`: example input workbook for the paired workflow
@@ -26,7 +26,9 @@ mapping libraries, although custom libraries are accommodated as well.
 ## Requirements
 
 Use a recent R installation and install the packages required by the workflow
-you want to run.
+you want to run. Both workflows include a `Load Libraries` block that checks
+for their required packages, reports any that are missing, and loads them
+before the analysis begins.
 
 The single-sample workflow checks for these packages at runtime:
 
@@ -42,14 +44,14 @@ The single-sample workflow checks for these packages at runtime:
 - `heatmaply`
 - `NewmanOmics`
 
-The paired workflow also depends on packages used directly in the notebook,
-including:
+The paired workflow checks for these packages at runtime:
 
 - `EnrichmentBrowser`
 - `dplyr`
 - `readxl`
 - `tidyr`
 - `tibble`
+- `tidyselect`
 - `xlsx`
 - `ggplot2`
 - `UpSetR`
@@ -59,7 +61,7 @@ Example install command:
 
 ```r
 install.packages(c(
-  "dplyr", "tidyr", "tibble", "readxl", "readr", "data.table",
+  "dplyr", "tidyr", "tibble", "tidyselect", "readxl", "readr", "data.table",
   "openxlsx", "ggplot2", "UpSetR", "gridExtra", "xlsx"
 ))
 

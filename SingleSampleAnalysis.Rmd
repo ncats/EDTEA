@@ -1,5 +1,5 @@
 ---
-title: "DTSEA Single Sample Workflow"
+title: "EDTEA Single Sample Workflow"
 author: "Andrew Patt"
 date: "2026-03-17"
 output: 
@@ -9,7 +9,7 @@ output:
 
 # Intro and User Input
 
-This workflow performs single-sample DTSEA-style analyses on compound screening
+This workflow performs single-sample EDTEA-style analyses on compound screening
 data supplied in a multi-sheet Excel workbook. It generalizes the original
 MIPE-specific analysis by reading assay values, sample annotations, and
 run-level settings from the workbook rather than from hard-coded input files.
