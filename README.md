@@ -1,6 +1,7 @@
 # EDTEA
 
-Ensemble Drug Enrichment Analysis workflows for high-throughput compound
+Ensemble Drug Target Enrichment Analysis workflows for high-throughput compound
+
 screening data.
 
 This repository contains two R Markdown workflows for identifying target-level
@@ -168,3 +169,9 @@ user-specified `Root_Directory`.
 ## License
 
 This repository is released under the [GNU General Public License v2.0 only](LICENSE).
+
+## Contact
+[Andrew Patt](mailto:andrew.patt@nih.gov)
+[Ewy Mathé](mailto:ewy.mathe@nih.gov)
+
+[Submit issues with the software to the repository issues board](https://github.com/ncats/EDTEA/issues)
