@@ -1,5 +1,5 @@
 ---
-title: "DTSEA Paired Sample Workflow"
+title: "EDTEA Paired Sample Workflow"
 author: "Andrew Patt"
 date: "2026-03-17"
 output: 
@@ -9,7 +9,7 @@ output:
 
 # Intro and User Input
 
-This workflow performs drug target set enrichment analysis (DTSEA) on paired-
+This workflow performs Ensemble Drug Enrichment Analysis (EDTEA) on paired-
 sample high-throughput compound screening data. It is intended for studies with
 two phenotype groups and multiple sample columns defined in a metadata
 workbook. If this is not the case, the single-sample analysis workflow should
@@ -39,6 +39,38 @@ data_sheet <- "Example_Paired_Data.xlsx"
 ```
 
 # Automated workflow
+## Load Libraries
+
+```{r}
+required_packages <- c(
+  "dplyr",
+  "tidyr",
+  "tibble",
+  "tidyselect",
+  "readxl",
+  "EnrichmentBrowser",
+  "xlsx",
+  "ggplot2",
+  "UpSetR",
+  "gridExtra"
+)
+
+missing_packages <- required_packages[
+  !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+]
+
+if (length(missing_packages) > 0) {
+  stop(
+    paste(
+      "Install the following R packages before rendering this workflow:",
+      paste(missing_packages, collapse = ", ")
+    )
+  )
+}
+
+invisible(lapply(required_packages, library, character.only = TRUE))
+```
+
 ## Read in data and organize for downstream analysis
 
 ```{r Organize Data Structures}

@@ -1,6 +1,7 @@
 # EDTEA
 
 Ensemble Drug Target Enrichment Analysis workflows for high-throughput compound
+
 screening data.
 
 This repository contains two R Markdown workflows for identifying target-level
@@ -26,7 +27,9 @@ mapping libraries, although custom libraries are accommodated as well.
 ## Requirements
 
 Use a recent R installation and install the packages required by the workflow
-you want to run.
+you want to run. Both workflows include a `Load Libraries` block that checks
+for their required packages, reports any that are missing, and loads them
+before the analysis begins.
 
 The single-sample workflow checks for these packages at runtime:
 
@@ -42,14 +45,14 @@ The single-sample workflow checks for these packages at runtime:
 - `heatmaply`
 - `NewmanOmics`
 
-The paired workflow also depends on packages used directly in the notebook,
-including:
+The paired workflow checks for these packages at runtime:
 
 - `EnrichmentBrowser`
 - `dplyr`
 - `readxl`
 - `tidyr`
 - `tibble`
+- `tidyselect`
 - `xlsx`
 - `ggplot2`
 - `UpSetR`
@@ -59,7 +62,7 @@ Example install command:
 
 ```r
 install.packages(c(
-  "dplyr", "tidyr", "tibble", "readxl", "readr", "data.table",
+  "dplyr", "tidyr", "tibble", "tidyselect", "readxl", "readr", "data.table",
   "openxlsx", "ggplot2", "UpSetR", "gridExtra", "xlsx"
 ))
 
@@ -170,3 +173,5 @@ This repository is released under the [GNU General Public License v2.0 only](LIC
 ## Contact
 [Andrew Patt](mailto:andrew.patt@nih.gov)
 [Ewy Mathé](mailto:ewy.mathe@nih.gov)
+
+[Submit issues with the software to the repository issues board](https://github.com/ncats/EDTEA/issues)
