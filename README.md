@@ -167,6 +167,7 @@ user-specified `Root_Directory`.
   single-sample workflow when that assumption does not hold.
 
 ## License
+
 This repository is licensed under the [Creative Commons Attribution 4.0
 International License](LICENSE) (CC BY 4.0). When using, sharing, or adapting
 this work, please credit the EDTEA contributors, link to this repository and
