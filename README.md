@@ -168,10 +168,14 @@ user-specified `Root_Directory`.
 
 ## License
 
-This repository is released under the [GNU General Public License v2.0 only](LICENSE).
+This repository is licensed under the [Creative Commons Attribution 4.0
+International License](LICENSE) (CC BY 4.0). When using, sharing, or adapting
+this work, please credit the EDTEA contributors, link to this repository and
+the license, and indicate whether changes were made.
 
 ## Contact
 [Andrew Patt](mailto:andrew.patt@nih.gov)
 [Ewy Mathé](mailto:ewy.mathe@nih.gov)
 
 [Submit issues with the software to the repository issues board](https://github.com/ncats/EDTEA/issues)
+
