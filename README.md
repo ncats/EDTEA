@@ -31,12 +31,13 @@ you want to run. Both workflows include a `Load Libraries` block that checks
 for their required packages, reports any that are missing, and loads them
 before the analysis begins.
 
+Both workflows use `openxlsx` to read and write Excel workbooks.
+
 The single-sample workflow checks for these packages at runtime:
 
 - `dplyr`
 - `tidyr`
 - `tibble`
-- `readxl`
 - `readr`
 - `data.table`
 - `openxlsx`
@@ -49,11 +50,10 @@ The paired workflow checks for these packages at runtime:
 
 - `EnrichmentBrowser`
 - `dplyr`
-- `readxl`
 - `tidyr`
 - `tibble`
 - `tidyselect`
-- `xlsx`
+- `openxlsx`
 - `ggplot2`
 - `UpSetR`
 - `gridExtra`
@@ -62,8 +62,8 @@ Example install command:
 
 ```r
 install.packages(c(
-  "dplyr", "tidyr", "tibble", "tidyselect", "readxl", "readr", "data.table",
-  "openxlsx", "ggplot2", "UpSetR", "gridExtra", "xlsx"
+  "dplyr", "tidyr", "tibble", "tidyselect", "readr", "data.table",
+  "openxlsx", "ggplot2", "UpSetR", "gridExtra"
 ))
 
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
